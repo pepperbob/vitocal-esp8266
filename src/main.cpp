@@ -55,11 +55,16 @@ void setup() {
   vito.onRead(sendDatapoint);
   
   while(!Serial) continue;
+  
+  assureWifiConnected();
 }
 
 void loop() {  
-  
-  if (vito.loop() && ((millis() - started) > interval)) {
+  auto isIdle = vito.loop();
+  auto millisSince = millis() - started;
+  auto shouldUpdate = millisSince > interval;
+
+  if (isIdle && shouldUpdate) {
     
     blink.blink(1);
     
@@ -70,5 +75,8 @@ void loop() {
 
     started = millis();
   
+  } else if (isIdle) {
+    // sleep to save power
+    delay(30000);
   }
 }
