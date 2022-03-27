@@ -18,11 +18,11 @@ struct AddressValue {
         return val.data();
     }
 
-    float toTemp() {        
+    float toTemp() const {
         return toInt()/10.0f;
     }
 
-    int16_t toInt() {
+    int16_t toInt() const {
         switch(val.size()) {
             case 0:
                 return 0;
@@ -45,24 +45,24 @@ struct AddressValue {
  */
 struct Address {
     const char* name;
-    uint16_t addr;
+    const uint16_t addr;
 
-    bool writable = false;
-    uint8_t length = 2;
+    const bool writable = false;
+    const uint8_t length = 2;
 };
 
 /**
  * @brief Event that is published upon successfull reading.
  */
 struct ReadEvent {
-    Address address;
-    AddressValue value;
+    const Address address;
+    const AddressValue value;
 };
 
 template <typename T>
 struct ReadResult {
-    T result;
-    bool isError;
+    const T result;
+    const bool isError;
 };
 
 class Optolink {
@@ -85,6 +85,7 @@ class Optolink {
 
 /// Callback definition of an eventhandler subscribing to read events.
 typedef std::function<void(ReadEvent)> ReadEventHandler;
+typedef std::function<void()> QueueProcessedHandler;
 
 class Vitocal {
     public:
@@ -98,6 +99,7 @@ class Vitocal {
 
     /// Register Event Handler that is called upon successful read
     void onRead(ReadEventHandler handler);
+    void onQueueProcessed(QueueProcessedHandler handler);
 
     private:
     /// states of the state-machine
@@ -125,7 +127,9 @@ class Vitocal {
         }
     };
     
-    ReadEventHandler _handler;
+    ReadEventHandler _readHandler;
+    QueueProcessedHandler _processedHandler;
+
     std::queue<Action>_queue;
 
     Optolink opto;

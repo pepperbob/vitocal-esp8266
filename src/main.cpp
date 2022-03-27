@@ -12,6 +12,13 @@ Vitocal vito;
 unsigned long started = 0;
 unsigned long interval = 60000;
 
+struct DataPointValue {
+  const char* name;
+  const float value;
+};
+
+std::vector<DataPointValue> currentDatapoints;
+
 void assureWifiConnected() {
   if (WiFi.status() == WL_CONNECTED) {
     return;
@@ -27,16 +34,25 @@ void assureWifiConnected() {
   wifi_set_sleep_type(LIGHT_SLEEP_T);
 }
 
-void sendDatapoint(ReadEvent event) {
+void collectDatapoint(ReadEvent event) {
+  currentDatapoints.push_back({event.address.name, event.value.toTemp()});
+}
+
+void sendDatapoints() {
   assureWifiConnected();
   
   WiFiClient wifiClient;
   HTTPClient http;
 
-  StaticJsonDocument<100> doc;
+  StaticJsonDocument<130> doc;
 
   doc["device"] = "vitocal";
-  doc[event.address.name] = event.value.toTemp();
+
+  for (auto p : currentDatapoints) {
+    doc[p.name] = p.value;
+  }
+
+  currentDatapoints.clear();
 
   http.begin(wifiClient, metricHost);
   int stat = http.POST(doc.as<String>());
@@ -52,7 +68,10 @@ void sendDatapoint(ReadEvent event) {
 void setup() {
 
   vito.setup(&Serial);
-  vito.onRead(sendDatapoint);
+
+  // register handler functions
+  vito.onRead(collectDatapoint);
+  vito.onQueueProcessed(sendDatapoints);
   
   while(!Serial) continue;
   

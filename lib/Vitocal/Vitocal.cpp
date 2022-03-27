@@ -43,11 +43,16 @@ bool Vitocal::loop() {
             if (reading.isError) {
                 state = PROCESS_QUEUE;
             } else if (!reading.result.empty()) {
-                if(_handler) {
-                    _handler({_queue.front().addr, {reading.result}});
+                if (_readHandler) {
+                    _readHandler({_queue.front().addr, {reading.result}});
                 }
 
                 _queue.pop();
+
+                if (_queue.empty() && _processedHandler) {
+                    _processedHandler();
+                }
+
                 state = IDLE;
             }
             
@@ -58,7 +63,11 @@ bool Vitocal::loop() {
 }
 
 void Vitocal::onRead(ReadEventHandler handler) {
-    _handler = handler;
+    _readHandler = handler;
+}
+
+void Vitocal::onQueueProcessed(QueueProcessedHandler handler) {
+    _processedHandler = handler;
 }
 
 bool Vitocal::doRead(Address address) {
