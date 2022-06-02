@@ -36,6 +36,7 @@ void assureWifiConnected() {
 
 void collectDatapoint(ReadEvent event) {
   currentDatapoints.push_back({event.address.name, event.value.toTemp()});
+  blink.blinkShort(1);
 }
 
 void sendDatapoints() {
@@ -44,7 +45,7 @@ void sendDatapoints() {
   WiFiClient wifiClient;
   HTTPClient http;
 
-  StaticJsonDocument<130> doc;
+  StaticJsonDocument<150> doc;
 
   doc["device"] = "vitocal";
 
@@ -94,8 +95,8 @@ void loop() {
 
     started = millis();
   
-  } else if (isIdle) {
+  } else if (isIdle && !shouldUpdate) {
     // sleep to save power
-    delay(30000);
+    delay(interval - millisSince);    
   }
 }

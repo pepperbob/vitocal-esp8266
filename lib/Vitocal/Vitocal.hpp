@@ -12,11 +12,7 @@
  * @brief Wrapper for a value read from a address.
  */
 struct AddressValue {
-    std::vector<uint8_t> val;
-
-    uint8_t* toRaw() {
-        return val.data();
-    }
+    const std::vector<uint8_t> val;
 
     float toTemp() const {
         return toInt()/10.0f;
