@@ -7,15 +7,12 @@
 #include <MQTT.h>
 
 WiFiClient wifiClient;
-MQTTClient mqttClient;
+MQTTClient mqttClient(200);
 Blinker blink(LED_BUILTIN);
 Vitocal vito;
 
 unsigned long interval = 60000;
-unsigned long mqttInterval = 500;
-
 unsigned long started = interval*-1;
-unsigned long mqttLastLoop = mqttInterval*-1;
 
 struct DataPointValue {
   const char* name;
@@ -39,6 +36,8 @@ void assureWifiConnected() {
 }
 
 void assureMqttConnected() {
+  assureWifiConnected();
+
   if (mqttClient.connected()) {
     return;
   }
@@ -66,7 +65,6 @@ void collectDatapoint(ReadEvent event) {
 }
 
 void sendDatapoints() {
-  assureWifiConnected();
   assureMqttConnected();
   
   StaticJsonDocument<150> doc;
@@ -82,6 +80,7 @@ void sendDatapoints() {
   if (mqttClient.publish(mqtt_TopicSensor, doc.as<String>())) {
     blink.blinkShort(2);
   } else {
+    mqttLogHandler({"err: " + std::to_string(mqttClient.lastError()), millis()});
     blink.blink(5, 30);
   }
 }
@@ -107,10 +106,9 @@ void setup() {
 }
 
 void loop() {
-  // handle mqtt loop
-  if ((millis() - mqttLastLoop) > mqttInterval) {
-    mqttClient.loop();
-    mqttLastLoop = millis();
+  auto isConnected = mqttClient.loop();
+  if (!isConnected) {
+    assureMqttConnected();
   }
   
   // handle vitocal
@@ -128,9 +126,6 @@ void loop() {
     vito.doRead(ADDR_RL);
 
     started = millis();
-  } else if (isIdle) {
-    // short pause
-    delay(500);
   }
 
 }

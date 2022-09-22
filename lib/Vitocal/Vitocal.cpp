@@ -13,56 +13,55 @@ bool Vitocal::loop() {
         case SYNC_REQUIRED:
             if (opto.sync()) {
                 _doLog("sync ok");
-                state = IDLE;
+                state = SYNCHED;
             }
             break;
 
-        case IDLE:
-            if (!_queue.empty()) {
-                state = PROCESS_QUEUE;
-            }
-            break;
-
-        case PROCESS_QUEUE:
-            if (opto.send(_queue.front().toSendBuffer())) {
-                state = EXPECT_RESPONSE;
+        case SYNCHED:
+            if (_queue.empty()) {
+                state = SYNC_REQUIRED;
             } else {
-                _doLog("opto send not ok");
-                _queue.front().retry++;
-                
-                /// some arbitrary retry... ?! 
-                if (_queue.front().retry > 5) {
-                    _doLog("discarded queue head");
+                state = PROCESS_REQUIRED;
+            }
+            break;
 
+        case PROCESS_REQUIRED:
+            opto.send(_queue.front().toSendBuffer());
+            _queue.front().retry++;
+            state = RESPONSE_EXPECTED;
+            
+            _doLog("Read started");
+            
+            break;
+
+        case RESPONSE_EXPECTED:
+            {
+                auto reading = opto.read(_queue.front().addr.length);
+
+                if(reading.isError && _queue.front().retry < 5) {
+                    _doLog("Read error");
+                    state = SYNC_REQUIRED;
+                } else if(reading.isError) {
+                    _doLog("discarded queue head");
                     _queue.pop();
                     state = SYNC_REQUIRED;
+                } else {
+                    if (_readHandler) {
+                        _readHandler({_queue.front().addr, {reading.result}});
+                    }
+                    state = RESPONSE_COMPLETED;
                 }
-            };
-            
-            break;
-
-        case EXPECT_RESPONSE:
-            auto reading = opto.read(_queue.front().addr.length);
-
-            if (reading.isError) {
-                _doLog("read error");
-
-                state = PROCESS_QUEUE;
-            } else if (!reading.result.empty()) {
-                if (_readHandler) {
-                    _readHandler({_queue.front().addr, {reading.result}});
-                }
-
-                _queue.pop();
-
-                if (_queue.empty() && _processedHandler) {
-                    _processedHandler();
-                }
-
-                state = IDLE;
             }
-            
             break;
+
+        case RESPONSE_COMPLETED:
+            _queue.pop();
+
+            if (_queue.empty() && _processedHandler) {
+                _processedHandler();
+            }
+
+            state = SYNC_REQUIRED;
     }
 
     return _queue.empty();
@@ -80,7 +79,7 @@ void Vitocal::onLog(LogEventHandler handler) {
     _logHandler = handler;
 }
 
-void Vitocal::_doLog(String message) {
+void Vitocal::_doLog(std::string message) {
     if (_logHandler) {
         _logHandler({ message, millis() });
     }
@@ -97,10 +96,7 @@ void Optolink::setup(HardwareSerial* serial) {
 }
 
 bool Optolink::send(std::vector<uint8_t> sb) {
-    if(!sync()) {
-        return false;
-    }
-
+    /// we are synched at this point
     /// this could be optimised, ACK is just required after HELLO 
     _serial->write(VITO_ACK);
     
@@ -111,12 +107,8 @@ bool Optolink::send(std::vector<uint8_t> sb) {
 }
 
 bool Optolink::sync() {
-    int lastReading = -1;
-    auto time = millis();
-    while(_serial->available() || (lastReading == -1 && (millis() - time) < 5000)) {
-        lastReading = _serial->read();
-    }
-    return lastReading == VITO_HELLO;
+    int reading = _serial->read();
+    return reading == VITO_HELLO;
 }
 
 ReadResult<std::vector<uint8_t>> Optolink::read(uint8_t length) {
@@ -134,6 +126,5 @@ ReadResult<std::vector<uint8_t>> Optolink::read(uint8_t length) {
     if (buff.size() != length) {
         return {buff, true};
     }
-
     return { buff, false };
 }

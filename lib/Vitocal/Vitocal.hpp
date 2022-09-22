@@ -15,7 +15,7 @@ struct AddressValue {
     const std::vector<uint8_t> val;
 
     float toTemp() const {
-        return toInt()/10.0f;
+        return roundf((toInt()/10.0f)*100/100);
     }
 
     int32_t toInt() const {
@@ -59,7 +59,7 @@ struct ReadEvent {
  * @brief Event that is published to log messages
  */
 struct LogEvent {
-    const String message;
+    const std::string message;
     const unsigned long millis;
 };
 
@@ -68,7 +68,6 @@ struct ReadResult {
     const T result;
     const bool isError;
 };
-
 class Optolink {
     public:
     /// Setup Serial Port
@@ -109,10 +108,10 @@ class Vitocal {
 
     private:
 
-    void _doLog(String message);
+    void _doLog(std::string message);
 
     /// states of the state-machine
-    enum VitoState { SYNC_REQUIRED, IDLE, PROCESS_QUEUE, EXPECT_RESPONSE };
+    enum VitoState { SYNC_REQUIRED, SYNCHED, PROCESS_REQUIRED, RESPONSE_EXPECTED, RESPONSE_COMPLETED };
     
     /// current state
     VitoState state = SYNC_REQUIRED;
