@@ -12,6 +12,7 @@ bool Vitocal::loop() {
 
         case SYNC_REQUIRED:
             if (opto.sync()) {
+                _doLog("sync ok");
                 state = IDLE;
             }
             break;
@@ -26,10 +27,13 @@ bool Vitocal::loop() {
             if (opto.send(_queue.front().toSendBuffer())) {
                 state = EXPECT_RESPONSE;
             } else {
+                _doLog("opto send not ok");
                 _queue.front().retry++;
                 
                 /// some arbitrary retry... ?! 
                 if (_queue.front().retry > 5) {
+                    _doLog("discarded queue head");
+
                     _queue.pop();
                     state = SYNC_REQUIRED;
                 }
@@ -41,6 +45,8 @@ bool Vitocal::loop() {
             auto reading = opto.read(_queue.front().addr.length);
 
             if (reading.isError) {
+                _doLog("read error");
+
                 state = PROCESS_QUEUE;
             } else if (!reading.result.empty()) {
                 if (_readHandler) {
@@ -70,6 +76,16 @@ void Vitocal::onQueueProcessed(QueueProcessedHandler handler) {
     _processedHandler = handler;
 }
 
+void Vitocal::onLog(LogEventHandler handler) {
+    _logHandler = handler;
+}
+
+void Vitocal::_doLog(String message) {
+    if (_logHandler) {
+        _logHandler({ message, millis() });
+    }
+}
+
 bool Vitocal::doRead(Address address) {
     _queue.push({DoRead, address});
     return true;
@@ -97,7 +113,7 @@ bool Optolink::send(std::vector<uint8_t> sb) {
 bool Optolink::sync() {
     int lastReading = -1;
     auto time = millis();
-    while(_serial->available() || (lastReading == -1 && (millis() - time) < 500)) {
+    while(_serial->available() || (lastReading == -1 && (millis() - time) < 5000)) {
         lastReading = _serial->read();
     }
     return lastReading == VITO_HELLO;

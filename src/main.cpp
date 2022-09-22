@@ -2,15 +2,20 @@
 #include <ESP8266WiFi.h>
 #include <Blink.hpp>
 #include <ArduinoJson.h>
-#include <ESP8266HTTPClient.h>
 #include <Vitocal.hpp>
 #include <secret.h>
+#include <MQTT.h>
 
+WiFiClient wifiClient;
+MQTTClient mqttClient;
 Blinker blink(LED_BUILTIN);
 Vitocal vito;
 
-unsigned long started = 0;
 unsigned long interval = 60000;
+unsigned long mqttInterval = 500;
+
+unsigned long started = interval*-1;
+unsigned long mqttLastLoop = mqttInterval*-1;
 
 struct DataPointValue {
   const char* name;
@@ -24,27 +29,46 @@ void assureWifiConnected() {
     return;
   }
 
-  WiFi.begin(wifi_SSID, wifi_Pass);
-
   while (WiFi.status() != WL_CONNECTED) {
-    delay(100);
+    // effectively delay
+    blink.blink(1, 500);
   }
 
   WiFi.mode(WIFI_STA);
   wifi_set_sleep_type(LIGHT_SLEEP_T);
 }
 
+void assureMqttConnected() {
+  if (mqttClient.connected()) {
+    return;
+  }
+
+  mqttClient.setWill(mqtt_TopicLWT, "Offline", true, 1);
+  while(!mqttClient.connect(mqtt_ClientId, mqtt_User, mqtt_Password)) {
+    // effectively delay
+    blink.blink(1, 500);
+  }
+  mqttClient.publish(mqtt_TopicLWT, "Online", true, 1);
+}
+
+void mqttLogHandler(LogEvent event) {
+  assureMqttConnected();
+  
+  StaticJsonDocument<150> logJson;
+  logJson["msg"] = event.message;
+  logJson["time"] = event.millis;
+
+  mqttClient.publish(mqtt_TopicLOG, logJson.as<String>());
+}
+
 void collectDatapoint(ReadEvent event) {
   currentDatapoints.push_back({event.address.name, event.value.toTemp()});
-  blink.blinkShort(1);
 }
 
 void sendDatapoints() {
   assureWifiConnected();
+  assureMqttConnected();
   
-  WiFiClient wifiClient;
-  HTTPClient http;
-
   StaticJsonDocument<150> doc;
 
   doc["device"] = "vitocal";
@@ -55,11 +79,7 @@ void sendDatapoints() {
 
   currentDatapoints.clear();
 
-  http.begin(wifiClient, metricHost);
-  int stat = http.POST(doc.as<String>());
-  http.end();
-
-  if (stat >= 200 && stat < 300) {
+  if (mqttClient.publish(mqtt_TopicSensor, doc.as<String>())) {
     blink.blinkShort(2);
   } else {
     blink.blink(5, 30);
@@ -73,13 +93,27 @@ void setup() {
   // register handler functions
   vito.onRead(collectDatapoint);
   vito.onQueueProcessed(sendDatapoints);
+  vito.onLog(mqttLogHandler);
   
   while(!Serial) continue;
   
+  WiFi.begin(wifi_SSID, wifi_Pass);
   assureWifiConnected();
+
+  mqttClient.begin(mqtt_Host, wifiClient);
+  assureMqttConnected();
+
+  mqttLogHandler({"setup complete", millis()});
 }
 
-void loop() {  
+void loop() {
+  // handle mqtt loop
+  if ((millis() - mqttLastLoop) > mqttInterval) {
+    mqttClient.loop();
+    mqttLastLoop = millis();
+  }
+  
+  // handle vitocal
   auto isIdle = vito.loop();
   auto millisSince = millis() - started;
   auto shouldUpdate = millisSince > interval;
@@ -94,9 +128,9 @@ void loop() {
     vito.doRead(ADDR_RL);
 
     started = millis();
-  
-  } else if (isIdle && !shouldUpdate) {
-    // sleep to save power
-    delay(interval - millisSince);    
+  } else if (isIdle) {
+    // short pause
+    delay(500);
   }
+
 }

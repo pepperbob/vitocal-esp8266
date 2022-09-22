@@ -18,7 +18,7 @@ struct AddressValue {
         return toInt()/10.0f;
     }
 
-    int16_t toInt() const {
+    int32_t toInt() const {
         switch(val.size()) {
             case 0:
                 return 0;
@@ -55,6 +55,14 @@ struct ReadEvent {
     const AddressValue value;
 };
 
+/**
+ * @brief Event that is published to log messages
+ */
+struct LogEvent {
+    const String message;
+    const unsigned long millis;
+};
+
 template <typename T>
 struct ReadResult {
     const T result;
@@ -82,6 +90,7 @@ class Optolink {
 /// Callback definition of an eventhandler subscribing to read events.
 typedef std::function<void(ReadEvent)> ReadEventHandler;
 typedef std::function<void()> QueueProcessedHandler;
+typedef std::function<void(LogEvent)> LogEventHandler;
 
 class Vitocal {
     public:
@@ -96,8 +105,12 @@ class Vitocal {
     /// Register Event Handler that is called upon successful read
     void onRead(ReadEventHandler handler);
     void onQueueProcessed(QueueProcessedHandler handler);
+    void onLog(LogEventHandler handler);
 
     private:
+
+    void _doLog(String message);
+
     /// states of the state-machine
     enum VitoState { SYNC_REQUIRED, IDLE, PROCESS_QUEUE, EXPECT_RESPONSE };
     
@@ -125,6 +138,7 @@ class Vitocal {
     
     ReadEventHandler _readHandler;
     QueueProcessedHandler _processedHandler;
+    LogEventHandler _logHandler;
 
     std::queue<Action>_queue;
 
@@ -135,3 +149,4 @@ const Address ADDR_AU = { "temp_au", 0x0101 };
 const Address ADDR_WW = { "temp_ww", 0x010D };
 const Address ADDR_VL = { "temp_vl", 0x0105 };
 const Address ADDR_RL = { "temp_rl", 0x0106 };
+const Address ADDR_BS = { "count_bs", 0x5005, false, 4 };
