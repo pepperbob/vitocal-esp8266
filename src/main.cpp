@@ -36,23 +36,26 @@ void assureWifiConnected() {
 }
 
 void assureMqttConnected() {
-  assureWifiConnected();
-
   if (mqttClient.connected()) {
     return;
   }
 
   mqttClient.setWill(mqtt_TopicLWT, "Offline", true, 1);
-  while(!mqttClient.connect(mqtt_ClientId, mqtt_User, mqtt_Password)) {
-    // effectively delay
+
+  do {
+    // we are not connected to mqtt
+    // make sure wifi is ok, wait a bit, check status
+    assureWifiConnected();
     blink.blink(1, 500);
-  }
+  } while(!mqttClient.connect(mqtt_ClientId, mqtt_User, mqtt_Password));
+
   mqttClient.publish(mqtt_TopicLWT, "Online", true, 1);
+
 }
 
 void mqttLogHandler(LogEvent event) {
   assureMqttConnected();
-  
+
   StaticJsonDocument<150> logJson;
   logJson["msg"] = event.message;
   logJson["time"] = event.millis;
@@ -66,7 +69,7 @@ void collectDatapoint(ReadEvent event) {
 
 void sendDatapoints() {
   assureMqttConnected();
-  
+
   StaticJsonDocument<150> doc;
 
   doc["device"] = "vitocal";
@@ -83,6 +86,7 @@ void sendDatapoints() {
     mqttLogHandler({"err: " + std::to_string(mqttClient.lastError()), millis()});
     blink.blink(5, 30);
   }
+
 }
 
 void setup() {
@@ -106,17 +110,15 @@ void setup() {
 }
 
 void loop() {
-  auto isConnected = mqttClient.loop();
-  if (!isConnected) {
+  if (!mqttClient.loop()) {
     assureMqttConnected();
   }
   
   // handle vitocal
-  auto isIdle = vito.loop();
   auto millisSince = millis() - started;
   auto shouldUpdate = millisSince > interval;
 
-  if (isIdle && shouldUpdate) {
+  if (vito.loop() && shouldUpdate) {
     
     blink.blink(1);
     
