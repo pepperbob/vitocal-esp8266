@@ -7,16 +7,27 @@
 #define VITO_ACK 0x01
 #define VITO_HELLO 0x05
 
+/**
+ * @brief Defines a specific address.
+ * 
+ * Address has a name, a data point, a type of what is represents and the length of 
+ * the expected data at this address.
+ * 
+ */
+enum class AddressType { Temp, Int };
+struct Address {
+    const char* name;
+    const uint16_t addr;
+    
+    const AddressType type = AddressType::Temp;
+    const uint8_t length = 2;
+};
 
 /**
  * @brief Wrapper for a value read from a address.
  */
 struct AddressValue {
     const std::vector<uint8_t> val;
-
-    float toTemp() const {
-        return roundf((toInt()/10.0f)*100/100);
-    }
 
     int32_t toInt() const {
         switch(val.size()) {
@@ -26,25 +37,12 @@ struct AddressValue {
                 return val[0];
             case 2:
                 return (val[1] << 8 | val[0]);
+            case 4:
+                return (val[3] << 24 | val[2] << 16 | val[1] << 8 | val[0]);
             default:
                 return -255;
         }
     }
-};
-
-/**
- * @brief Defines a specific address.
- * 
- * Address has a name, a data point, if it can be written and the length of 
- * the expected data at this address.
- * 
- */
-struct Address {
-    const char* name;
-    const uint16_t addr;
-
-    const bool writable = false;
-    const uint8_t length = 2;
 };
 
 /**
@@ -73,11 +71,11 @@ class Optolink {
     /// Setup Serial Port
     void setup(HardwareSerial* serial);
     
-    /// try to sync, retruns true if Vitocal could be detected.
+    /// try to sync, returns true if Vitocal could be detected.
     bool sync();
     
     /// sends data to serial output; returns true if data could be sent.
-    bool send(std::vector<uint8_t> sendBuffer);
+    bool send(const std::vector<uint8_t> sendBuffer);
 
     /// Read length of data from serial input.
     ReadResult<std::vector<uint8_t>> read(uint8_t length);
@@ -119,10 +117,10 @@ class Vitocal {
     enum ActionType { DoRead, DoWrite };
     struct Action {
         ActionType type;
-        Address addr;
+        const Address addr;
         int retry = 0;
 
-        std::vector<uint8_t> toSendBuffer() {
+        const std::vector<uint8_t> toSendBuffer() {
             std::vector<uint8_t> buff;
             if (type == DoRead) {
                 // Encode Read
@@ -148,4 +146,4 @@ const Address ADDR_AU = { "temp_au", 0x0101 };
 const Address ADDR_WW = { "temp_ww", 0x010D };
 const Address ADDR_VL = { "temp_vl", 0x0105 };
 const Address ADDR_RL = { "temp_rl", 0x0106 };
-const Address ADDR_BS = { "count_bs", 0x5005, false, 4 };
+const Address ADDR_BS = { "count_bs", 0x5005, AddressType::Int, 4 };

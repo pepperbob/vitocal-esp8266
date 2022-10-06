@@ -36,7 +36,7 @@ bool Vitocal::loop() {
 
         case RESPONSE_EXPECTED:
             {
-                auto reading = opto.read(_queue.front().addr.length);
+                const auto reading = opto.read(_queue.front().addr.length);
 
                 if(reading.isError && _queue.front().retry < 5) {
                     _doLog("Read error");
@@ -95,7 +95,7 @@ void Optolink::setup(HardwareSerial* serial) {
     serial->begin(4800, SERIAL_8E2);
 }
 
-bool Optolink::send(std::vector<uint8_t> sb) {
+bool Optolink::send(const std::vector<uint8_t> sb) {
     /// we are synched at this point
     /// this could be optimised, ACK is just required after HELLO 
     _serial->write(VITO_ACK);
@@ -124,7 +124,7 @@ ReadResult<std::vector<uint8_t>> Optolink::read(uint8_t length) {
     }
 
     if (buff.size() != length) {
-        return {buff, true};
+        return { buff, true };
     }
     return { buff, false };
 }
