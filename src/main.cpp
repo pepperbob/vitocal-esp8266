@@ -16,7 +16,7 @@ unsigned long started = interval*-1;
 
 struct DataPointValue {
   const char* name;
-  const int32_t value;
+  const AddressValue value;
   const AddressType type;
 };
 
@@ -65,7 +65,7 @@ void mqttLogHandler(LogEvent event) {
 }
 
 void collectDatapoint(const ReadEvent event) {
-  currentDatapoints.push_back({event.address.name, event.value.toInt(), event.address.type});
+  currentDatapoints.push_back({event.address.name, event.value, event.address.type});
 }
 
 void sendDatapoints() {
@@ -77,9 +77,11 @@ void sendDatapoints() {
 
   for (auto p : currentDatapoints) {
     if(p.type == AddressType::Temp) {
-      doc[p.name] = roundf((p.value/10.0f)*100/100);
+      int16_t temp;
+      doc[p.name] = roundf((p.value.toInt(temp)/10.0f)*100/100);
     } else {
-      doc[p.name] = p.value;
+      uint32_t number;
+      doc[p.name] = p.value.toInt(number);
     }
   }
 

@@ -29,19 +29,13 @@ struct Address {
 struct AddressValue {
     const std::vector<uint8_t> val;
 
-    int32_t toInt() const {
-        switch(val.size()) {
-            case 0:
-                return 0;
-            case 1:
-                return val[0];
-            case 2:
-                return (val[1] << 8 | val[0]);
-            case 4:
-                return (val[3] << 24 | val[2] << 16 | val[1] << 8 | val[0]);
-            default:
-                return -255;
+    template <typename IntegerType>
+    IntegerType toInt(IntegerType &result) const {
+        result = 0
+        for (int n = val.size()-1; n >= 0; n--) {
+            result = (result << 8) + val[n];
         }
+        return result;
     }
 };
 

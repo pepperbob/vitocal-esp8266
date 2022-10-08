@@ -108,7 +108,7 @@ bool Optolink::send(const std::vector<uint8_t> sb) {
 
 bool Optolink::sync() {
     int reading = _serial->read();
-    return reading == VITO_HELLO;
+    return !_serial->available() && reading == VITO_HELLO;
 }
 
 ReadResult<std::vector<uint8_t>> Optolink::read(uint8_t length) {
