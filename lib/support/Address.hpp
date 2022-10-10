@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ArduinoJson.h>
 #include <stdint.h>
 
 /**
@@ -25,23 +26,39 @@ struct AddressValue {
  * the expected data at this address.
  * 
  */
-enum class AddressType { Temp, Int };
 struct Address {
+
+    Address(const char* name, uint16_t addr, uint8_t length): name(name), addr(addr), length(length) { }
+
     const char* name;
     const uint16_t addr;
-    
-    const AddressType type = AddressType::Temp;
-    const uint8_t length = 2;
+    const uint8_t length;
 
-    void output(JsonDocument &doc, AddressValue &value) {
+    virtual void output(JsonDocument &doc, const AddressValue &value) = 0;
+};
+
+struct CO_4: Address {
+    CO_4(const char* name, uint16_t addr): Address(name, addr, 4) {}
+
+    void output(JsonDocument &doc, const AddressValue &value) override {
+        uint32_t temp;
+        value.toInt(temp);
+        doc[name] = temp;
+    }
+};
+
+struct Temperature: Address {
+    Temperature(const char* name, uint16_t addr): Address(name, addr, 2) { }
+
+    void output(JsonDocument &doc, const AddressValue &value) override {
         int16_t temp;
         value.toInt(temp);
         doc[name] = (float)temp/10.0f;
     }
 };
 
-const Address ADDR_AU = { "temp_au", 0x0101 };
-const Address ADDR_WW = { "temp_ww", 0x010D };
-const Address ADDR_VL = { "temp_vl", 0x0105 };
-const Address ADDR_RL = { "temp_rl", 0x0106 };
-const Address ADDR_BS = { "count_bs", 0x5005, AddressType::Int, 4 };
+const Temperature ADDR_AU = { "temp_au", 0x0101 };
+const Temperature ADDR_WW = { "temp_ww", 0x010D };
+const Temperature ADDR_VL = { "temp_vl", 0x0105 };
+const Temperature ADDR_RL = { "temp_rl", 0x0106 };
+const CO_4 ADDR_BS = { "count_bs", 0x5005 };

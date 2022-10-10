@@ -17,9 +17,8 @@ unsigned long interval = 60000;
 unsigned long started = interval*-1;
 
 struct DataPointValue {
-  const char* name;
+  const Address *address;
   const AddressValue value;
-  const AddressType type;
 };
 
 std::vector<DataPointValue> currentDatapoints;
@@ -67,7 +66,8 @@ void mqttLogHandler(LogEvent event) {
 }
 
 void collectDatapoint(const ReadEvent event) {
-  currentDatapoints.push_back({event.address.name, event.value, event.address.type});
+  const DataPointValue dp = { event.address, event.value };
+  currentDatapoints.push_back(dp);
 }
 
 void sendDatapoints() {
@@ -78,13 +78,7 @@ void sendDatapoints() {
   doc["device"] = "vitocal";
 
   for (auto p : currentDatapoints) {
-    if(p.type == AddressType::Temp) {
-      int16_t temp;
-      doc[p.name] = roundf((p.value.toInt(temp)/10.0f)*100/100);
-    } else {
-      uint32_t number;
-      doc[p.name] = p.value.toInt(number);
-    }
+    // do stuff!
   }
 
   currentDatapoints.clear();
@@ -131,10 +125,10 @@ void loop() {
     
     blink.blink(1);
 
-    vito.doRead(ADDR_AU);
-    vito.doRead(ADDR_WW);
-    vito.doRead(ADDR_VL);
-    vito.doRead(ADDR_RL);
+    vito.doRead(&ADDR_AU);
+    vito.doRead(&ADDR_WW);
+    vito.doRead(&ADDR_VL);
+    vito.doRead(&ADDR_RL);
 
     started = millis();
   }

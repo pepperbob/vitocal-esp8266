@@ -36,7 +36,7 @@ bool Vitocal::loop() {
 
         case RESPONSE_EXPECTED:
             {
-                const auto reading = opto.read(_queue.front().addr.length);
+                const auto reading = opto.read(_queue.front().addr->length);
 
                 if(reading.isError && _queue.front().retry < 5) {
                     _doLog("Read error");
@@ -47,7 +47,8 @@ bool Vitocal::loop() {
                     state = SYNC_REQUIRED;
                 } else {
                     if (_readHandler) {
-                        _readHandler({_queue.front().addr, {reading.result}});
+                        ReadEvent re = {_queue.front().addr, { reading.result }};
+                        _readHandler(re);
                     }
                     state = RESPONSE_COMPLETED;
                 }
@@ -85,7 +86,7 @@ void Vitocal::_doLog(std::string message) {
     }
 }
 
-bool Vitocal::doRead(Address address) {
+bool Vitocal::doRead(const Address* address) {
     _queue.push({DoRead, address});
     return true;
 }

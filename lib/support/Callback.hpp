@@ -8,7 +8,7 @@
  * @brief Event that is published upon successfull reading.
  */
 struct ReadEvent {
-    const Address address;
+    const Address* address;
     const AddressValue value;
 };
 

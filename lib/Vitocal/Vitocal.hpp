@@ -41,7 +41,7 @@ class Vitocal {
     bool loop();
 
     /// Queue read operation for address
-    bool doRead(Address address);
+    bool doRead(const Address* address);
 
     /// Register Event Handler that is called upon successful read
     void onRead(ReadEventHandler handler);
@@ -61,7 +61,7 @@ class Vitocal {
     enum ActionType { DoRead, DoWrite };
     struct Action {
         ActionType type;
-        const Address addr;
+        const Address* addr;
         int retry = 0;
 
         const std::vector<uint8_t> toSendBuffer() {
@@ -69,9 +69,9 @@ class Vitocal {
             if (type == DoRead) {
                 // Encode Read
                 buff.push_back(0xF7);
-                buff.push_back((addr.addr >> 8) & 0xFF);
-                buff.push_back(addr.addr & 0xFF);
-                buff.push_back(addr.length);
+                buff.push_back((addr->addr >> 8) & 0xFF);
+                buff.push_back(addr->addr & 0xFF);
+                buff.push_back(addr->length);
             }
             return buff;
         }
