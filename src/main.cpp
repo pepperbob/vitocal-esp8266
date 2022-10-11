@@ -23,18 +23,21 @@ struct DataPointValue {
 
 std::vector<DataPointValue> currentDatapoints;
 
-void assureWifiConnected() {
+void initWifi() {
   if (WiFi.status() == WL_CONNECTED) {
     return;
   }
+  
+  WiFi.mode(WIFI_STA);
+  delay(200);
+  WiFi.begin(wifi_SSID, wifi_Pass);
 
   while (WiFi.status() != WL_CONNECTED) {
     // effectively delay
-    blink.blink(1, 500);
+    blink.blink(1, 1000);
   }
 
-  WiFi.mode(WIFI_STA);
-  wifi_set_sleep_type(LIGHT_SLEEP_T);
+  WiFi.setAutoConnect(true);
 }
 
 void assureMqttConnected() {
@@ -42,17 +45,12 @@ void assureMqttConnected() {
     return;
   }
 
-  mqttClient.setWill(mqtt_TopicLWT, "Offline", true, 1);
-
-  do {
+  while(!mqttClient.connect(mqtt_ClientId, mqtt_User, mqtt_Password)) {
     // we are not connected to mqtt
-    // make sure wifi is ok, wait a bit, check status
-    assureWifiConnected();
-    blink.blink(1, 500);
-  } while(!mqttClient.connect(mqtt_ClientId, mqtt_User, mqtt_Password));
+    blink.blink(2, 500);
+  }
 
   mqttClient.publish(mqtt_TopicLWT, "Online", true, 1);
-
 }
 
 void mqttLogHandler(LogEvent event) {
@@ -74,11 +72,10 @@ void sendDatapoints() {
   assureMqttConnected();
 
   StaticJsonDocument<150> doc;
-
   doc["device"] = "vitocal";
 
-  for (auto p : currentDatapoints) {
-    // do stuff!
+  for (const DataPointValue p : currentDatapoints) {
+    p.address->output(doc, p.value);
   }
 
   currentDatapoints.clear();
@@ -94,6 +91,8 @@ void sendDatapoints() {
 
 void setup() {
 
+  initWifi();
+
   vito.setup(&Serial);
 
   // register handler functions
@@ -103,10 +102,9 @@ void setup() {
   
   while(!Serial) continue;
   
-  WiFi.begin(wifi_SSID, wifi_Pass);
-  assureWifiConnected();
-
   mqttClient.begin(mqtt_Host, wifiClient);
+  mqttClient.setWill(mqtt_TopicLWT, "Offline", true, 1);
+  
   assureMqttConnected();
 
   mqttLogHandler({"setup complete", millis()});

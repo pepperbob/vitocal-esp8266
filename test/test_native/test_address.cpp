@@ -64,9 +64,20 @@ void test_conversion_address() {
     TEST_ASSERT_EQUAL_FLOAT(65535, json["temp_xx"]);
 }
 
-void test_callback() {
-    
-    TEST_ASSERT_EQUAL(1,2);
+void test_conversion_address_ptr() {
+    std::vector<uint8_t> reading;
+    reading.push_back(0xF1);
+    reading.push_back(0xFF);
+
+    AddressValue v = { reading };
+
+    StaticJsonDocument<50> json;
+    Temperature xxx = { "temp_xx", 0x0123 };
+    Address *ptr = &xxx;
+
+    ptr->output(json, v);
+
+    TEST_ASSERT_EQUAL_FLOAT(-1.5f, json["temp_xx"]);
 }
 
 int main(int argc, char *argv[]) {
@@ -77,7 +88,7 @@ int main(int argc, char *argv[]) {
     RUN_TEST(test_conversion_temp);
     RUN_TEST(test_conversion_address);
 
-    RUN_TEST(test_callback);
+    RUN_TEST(test_conversion_address_ptr);
 
     UNITY_END();
 

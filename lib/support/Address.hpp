@@ -34,13 +34,13 @@ struct Address {
     const uint16_t addr;
     const uint8_t length;
 
-    virtual void output(JsonDocument &doc, const AddressValue &value) = 0;
+    virtual void output(JsonDocument &doc, const AddressValue &value) const = 0;
 };
 
 struct CO_4: Address {
     CO_4(const char* name, uint16_t addr): Address(name, addr, 4) {}
 
-    void output(JsonDocument &doc, const AddressValue &value) override {
+    void output(JsonDocument &doc, const AddressValue &value) const override {
         uint32_t temp;
         value.toInt(temp);
         doc[name] = temp;
@@ -50,7 +50,7 @@ struct CO_4: Address {
 struct Temperature: Address {
     Temperature(const char* name, uint16_t addr): Address(name, addr, 2) { }
 
-    void output(JsonDocument &doc, const AddressValue &value) override {
+    void output(JsonDocument &doc, const AddressValue &value) const override {
         int16_t temp;
         value.toInt(temp);
         doc[name] = (float)temp/10.0f;
