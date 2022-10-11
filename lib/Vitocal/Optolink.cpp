@@ -33,8 +33,7 @@ ReadResult Optolink::read(uint8_t length) {
         }
     }
 
-    if (buff.size() != length) {
-        return { buff, true };
-    }
-    return { buff, false };
+    boolean isErr = buff.size() != length;
+
+    return { buff, isErr };
 }
