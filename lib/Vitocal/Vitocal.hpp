@@ -4,34 +4,9 @@
 #include <functional>
 #include <queue>
 
+#include <Optolink.hpp>
 #include <Address.hpp>
 #include <Callback.hpp>
-
-#define VITO_ACK 0x01
-#define VITO_HELLO 0x05
-
-template <typename T>
-struct ReadResult {
-    const T result;
-    const bool isError;
-};
-class Optolink {
-    public:
-    /// Setup Serial Port
-    void setup(HardwareSerial* serial);
-    
-    /// try to sync, returns true if Vitocal could be detected.
-    bool sync();
-    
-    /// sends data to serial output; returns true if data could be sent.
-    bool send(const std::vector<uint8_t> sendBuffer);
-
-    /// Read length of data from serial input.
-    ReadResult<std::vector<uint8_t>> read(uint8_t length);
-
-    private:
-    Stream* _serial;
-};
 
 class Vitocal {
     public:
@@ -58,7 +33,7 @@ class Vitocal {
     /// current state
     VitoState state = SYNC_REQUIRED;
 
-    enum ActionType { DoRead, DoWrite };
+    enum class ActionType { DoRead, DoWrite };
     struct Action {
         ActionType type;
         const Address* addr;
@@ -66,7 +41,7 @@ class Vitocal {
 
         const std::vector<uint8_t> toSendBuffer() {
             std::vector<uint8_t> buff;
-            if (type == DoRead) {
+            if (type == ActionType::DoRead) {
                 // Encode Read
                 buff.push_back(0xF7);
                 buff.push_back((addr->addr >> 8) & 0xFF);
