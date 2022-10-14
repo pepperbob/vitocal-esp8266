@@ -13,7 +13,7 @@
  * @param message 
  * @return Address* 
  */
-const CO_4* processMessageToAddress(const char* message);
+const Address* processMessageToAddress(const char* message);
 
 /**
  * @brief Event that is published upon successfull reading.
@@ -21,6 +21,14 @@ const CO_4* processMessageToAddress(const char* message);
 struct ReadEvent {
     const Address* address;
     const AddressValue value;
+};
+
+/**
+ * @brief Event that is published upon read error, transporting the address.
+ * 
+ */
+struct ReadErrorEvent {
+    const Address* address;
 };
 
 /**
@@ -35,3 +43,4 @@ struct LogEvent {
 typedef std::function<void(ReadEvent)> ReadEventHandler;
 typedef std::function<void()> QueueProcessedHandler;
 typedef std::function<void(LogEvent)> LogEventHandler;
+typedef std::function<void(ReadErrorEvent)> ReadErrorEventHandler;

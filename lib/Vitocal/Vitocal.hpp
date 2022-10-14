@@ -12,15 +12,23 @@ class Vitocal {
     public:
     void setup(HardwareSerial* serial);
     
-    /// event loop for state-machine; returns true if idle.
+    /// @brief Execute Event Loop; needs to be called in the loop function.
+    /// @return True indicates idle/no tasks in queue, False busy/at least one task in queue. 
     bool loop();
 
-    /// Queue read operation for address
+    /// Queues read task for specified address.
     bool doRead(const Address* address);
 
-    /// Register Event Handler that is called upon successful read
+    /// @brief Executed when address has been read successfully.
+    /// @param handler 
     void onRead(ReadEventHandler handler);
-    void onQueueProcessed(QueueProcessedHandler handler);
+    /// @brief Handler is executed when an address could not be read and was removed from the queue.
+    /// @param handler 
+    void onReadError(ReadErrorEventHandler handler);
+
+    /// @brief Handler is executed when all reads are executed and queue is empty.
+    /// @param handler 
+    void onQueueProcessed(QueueProcessedHandler handler); 
     void onLog(LogEventHandler handler);
 
     private:
@@ -31,7 +39,7 @@ class Vitocal {
     enum VitoState { SYNC_REQUIRED, SYNCHED, PROCESS_REQUIRED, RESPONSE_EXPECTED, RESPONSE_COMPLETED };
     
     /// current state
-    VitoState state = SYNC_REQUIRED;
+    VitoState _state = SYNC_REQUIRED;
 
     enum class ActionType { DoRead, DoWrite };
     struct Action {
@@ -42,6 +50,7 @@ class Vitocal {
 
         const std::vector<uint8_t> toSendBuffer() {
             std::vector<uint8_t> buff;
+            // implements reads only currently
             if (type == ActionType::DoRead) {
                 // Encode Read
                 buff.push_back(0xF7);
@@ -54,10 +63,11 @@ class Vitocal {
     };
     
     ReadEventHandler _readHandler;
+    ReadErrorEventHandler _readErrorHandler;
     QueueProcessedHandler _processedHandler;
     LogEventHandler _logHandler;
 
     std::queue<Action>_queue;
 
-    Optolink opto;
+    Optolink _opto;
 };

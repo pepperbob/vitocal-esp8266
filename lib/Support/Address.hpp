@@ -39,11 +39,13 @@ struct Address {
 };
 
 /**
- * @brief Address variable input length; values will be transformed to uint32_t. 
+ * @brief Generic address to simply transform reading into a 4-byte-unsinged integer. 
+ * 
+ * Good for testing/research. 
  */
-struct CO_4: Address {
-    CO_4(const std::string name, uint16_t addr, uint8_t length): Address(name, addr, length) {}
-    ~CO_4() { }
+struct GenericInt4: Address {
+    GenericInt4(const std::string name, uint16_t addr, uint8_t length): Address(name, addr, length) {}
+    ~GenericInt4() { }
 
     void output(JsonDocument &doc, const AddressValue &value) const override {
         uint32_t no;
@@ -52,6 +54,10 @@ struct CO_4: Address {
     }
 };
 
+/**
+ * @brief Temperature value, transforms reading into temperature value as float.
+ * 
+ */
 struct Temperature: Address {
     Temperature(const std::string name, uint16_t addr): Address(name, addr, 2) { }
     ~Temperature() { }
@@ -63,9 +69,10 @@ struct Temperature: Address {
     }
 };
 
+// Pre-Defined addresses
 const Temperature ADDR_AU = { "temp_au", 0x0101 };
 const Temperature ADDR_WW = { "temp_ww", 0x010D };
 const Temperature ADDR_VL = { "temp_vl", 0x0105 };
 const Temperature ADDR_RL = { "temp_rl", 0x0106 };
 
-const CO_4 ADDR_BS = { "count_bs", 0x5005, 4 };
+const GenericInt4 ADDR_BS = { "count_bs", 0x5005, 4 };

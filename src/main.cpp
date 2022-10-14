@@ -10,7 +10,7 @@
 
 WiFiClient wifiClient;
 MQTTClient mqttClient(200);
-Blinker blink(LED_BUILTIN);
+Blinker led(LED_BUILTIN);
 Vitocal vito;
 
 unsigned long interval = 60000;
@@ -34,7 +34,7 @@ void initWifi() {
 
   while (WiFi.status() != WL_CONNECTED) {
     // effectively delay
-    blink.blink(1, 1000);
+    led.blink(1, 1000);
   }
 
   WiFi.setAutoConnect(true);
@@ -47,14 +47,14 @@ void assureMqttConnected() {
 
   while(!mqttClient.connect(mqtt_ClientId, mqtt_User, mqtt_Password)) {
     // we are not connected to mqtt
-    blink.blink(2, 500);
+    led.blink(2, 500);
   }
 
   mqttClient.publish(mqtt_TopicLWT, "Online", true, 1);
   mqttClient.subscribe(mqtt_TopicCMD);
 }
 
-void mqttLogHandler(LogEvent event) {
+void sendLogOverMqtt(LogEvent event) {
   assureMqttConnected();
 
   StaticJsonDocument<150> logJson;
@@ -64,19 +64,25 @@ void mqttLogHandler(LogEvent event) {
   mqttClient.publish(mqtt_TopicLOG, logJson.as<String>());
 }
 
+// convenience
+void sendLog(std::string msg) {
+  sendLogOverMqtt({msg, millis()});
+}
+
 void collectDatapoint(const ReadEvent event) {
-  const DataPointValue dp = { event.address, event.value };
-  currentDatapoints.push_back(dp);
+  currentDatapoints.push_back({ event.address, event.value });
 }
 
 void sendDatapoints() {
   assureMqttConnected();
 
-  StaticJsonDocument<150> doc;
+  StaticJsonDocument<200> doc;
   doc["device"] = "vitocal";
 
   for (DataPointValue p : currentDatapoints) {
     p.address->output(doc, p.value);
+    
+    // free memory
     delete p.address;
     p.address = 0;
   }
@@ -84,12 +90,17 @@ void sendDatapoints() {
   currentDatapoints.clear();
 
   if (mqttClient.publish(mqtt_TopicSensor, doc.as<String>())) {
-    blink.blinkShort(2);
+    led.blinkShort(2);
   } else {
-    mqttLogHandler({"err: " + std::to_string(mqttClient.lastError()), millis()});
-    blink.blink(5, 30);
+    sendLog("err: " + std::to_string(mqttClient.lastError()));
+    led.blink(5, 30);
   }
 
+}
+
+void freeAddressAfterFailure(ReadErrorEvent event) {
+  delete event.address;
+  event.address = 0;
 }
 
 void mqtt_parse_message(String &topic, String &payload) {
@@ -100,11 +111,11 @@ void mqtt_parse_message(String &topic, String &payload) {
     msg_read += std::to_string(address->addr) + "(";
     msg_read += std::to_string(address->length) + ")";
 
-    mqttLogHandler({ msg_read, millis() });
+    sendLog(msg_read);
     
     vito.doRead(address);
   } else {
-    mqttLogHandler( {"JSON not parsable", millis() });
+    sendLog("JSON not parsable");
   }
 }
 
@@ -114,10 +125,11 @@ void setup() {
 
   vito.setup(&Serial);
 
-  // register handler functions
+  // register callbacks
   vito.onRead(collectDatapoint);
+  vito.onReadError(freeAddressAfterFailure);
   vito.onQueueProcessed(sendDatapoints);
-  vito.onLog(mqttLogHandler);
+  vito.onLog(sendLogOverMqtt);
   
   while(!Serial) continue;
   
@@ -127,7 +139,7 @@ void setup() {
   
   assureMqttConnected();
 
-  mqttLogHandler({"setup complete", millis()});
+  sendLog("Setup complete.");
 }
 
 void loop() {
@@ -141,7 +153,7 @@ void loop() {
 
   if (vito.loop() && shouldUpdate) {
     
-    blink.blink(1);
+    led.blink(1);
 
     vito.doRead(new Temperature(ADDR_AU));
     vito.doRead(new Temperature(ADDR_WW));

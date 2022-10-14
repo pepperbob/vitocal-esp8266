@@ -58,14 +58,14 @@ void test_conversion_address() {
     AddressValue v = { reading };
 
     StaticJsonDocument<50> json;
-    CO_4 xxx = { "temp_xx", 0x0123, 0 };
+    GenericInt4 xxx = { "temp_xx", 0x0123, 0 };
     xxx.output(json, v);
 
     TEST_ASSERT_EQUAL_FLOAT(65535, json["temp_xx"]);
 }
 
 void test_init_co4() {
-    Address* addr = new CO_4("test", 0x0101, 0);
+    Address* addr = new GenericInt4("test", 0x0101, 0);
 
     TEST_ASSERT_EQUAL_STRING("test", addr->name.c_str());
     TEST_ASSERT_EQUAL_UINT16(257, addr->addr);
@@ -118,7 +118,7 @@ void test_parsemessage_witherr() {
 }
 
 void test_destructor() {
-    Address* addr = new CO_4("test", 0x1234, 0);
+    Address* addr = new GenericInt4("test", 0x1234, 0);
     TEST_ASSERT_NOT_NULL(addr);
 
     delete addr;

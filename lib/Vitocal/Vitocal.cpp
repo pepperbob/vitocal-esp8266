@@ -4,31 +4,31 @@
 #include "Vitocal.hpp"
 
 void Vitocal::setup(HardwareSerial* serial) {
-    opto.setup(serial);
+    _opto.setup(serial);
 }
 
 bool Vitocal::loop() {
-    switch (state) {
+    switch (_state) {
 
         case SYNC_REQUIRED:
-            if (opto.sync()) {
+            if (_opto.sync()) {
                 _doLog("sync ok");
-                state = SYNCHED;
+                _state = SYNCHED;
             }
             break;
 
         case SYNCHED:
             if (_queue.empty()) {
-                state = SYNC_REQUIRED;
+                _state = SYNC_REQUIRED;
             } else {
-                state = PROCESS_REQUIRED;
+                _state = PROCESS_REQUIRED;
             }
             break;
 
         case PROCESS_REQUIRED:
-            opto.send(_queue.front().toSendBuffer());
+            _opto.send(_queue.front().toSendBuffer());
             _queue.front().retry++;
-            state = RESPONSE_EXPECTED;
+            _state = RESPONSE_EXPECTED;
             
             _doLog("Read started");
             
@@ -36,21 +36,25 @@ bool Vitocal::loop() {
 
         case RESPONSE_EXPECTED:
             {
-                const auto reading = opto.read(_queue.front().addr->length);
+                const auto reading = _opto.read(_queue.front().addr->length);
 
                 if(reading.isError && _queue.front().retry < 5) {
-                    _doLog("Read error");
-                    state = SYNC_REQUIRED;
+                    _doLog("Read failed: " + _queue.front().addr->name);
+                    _state = SYNC_REQUIRED;
                 } else if(reading.isError) {
-                    _doLog("discarded queue head");
+                    _doLog("Discarded " + _queue.front().addr->name);
+                    if (_readErrorHandler) {
+                        _readErrorHandler({ _queue.front().addr });
+                    }
                     _queue.pop();
-                    state = SYNC_REQUIRED;
+                    
+                    _state = SYNC_REQUIRED;
                 } else {
                     if (_readHandler) {
                         ReadEvent re = {_queue.front().addr, { reading.result }};
                         _readHandler(re);
                     }
-                    state = RESPONSE_COMPLETED;
+                    _state = RESPONSE_COMPLETED;
                 }
             }
             break;
@@ -62,7 +66,7 @@ bool Vitocal::loop() {
                 _processedHandler();
             }
 
-            state = SYNC_REQUIRED;
+            _state = SYNC_REQUIRED;
     }
 
     return _queue.empty();
@@ -70,6 +74,10 @@ bool Vitocal::loop() {
 
 void Vitocal::onRead(ReadEventHandler handler) {
     _readHandler = handler;
+}
+
+void Vitocal::onReadError(ReadErrorEventHandler handler) {
+    _readErrorHandler = handler;
 }
 
 void Vitocal::onQueueProcessed(QueueProcessedHandler handler) {

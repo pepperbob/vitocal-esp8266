@@ -1,7 +1,7 @@
 #include <Callback.hpp>
 #include <ArduinoJson.h>
 
-const CO_4* processMessageToAddress(const char* message) {
+const Address* processMessageToAddress(const char* message) {
     StaticJsonDocument<150> doc;
     const auto err = deserializeJson(doc, message);
     if (err) {
@@ -11,5 +11,5 @@ const CO_4* processMessageToAddress(const char* message) {
     auto len = doc["len"].as<uint8_t>();
     len = len < 1 || len > 4 ? 4 : len;
     
-    return new CO_4(name, doc["addr"].as<uint16_t>(), len);
+    return new GenericInt4(name, doc["addr"].as<uint16_t>(), len);
 }
