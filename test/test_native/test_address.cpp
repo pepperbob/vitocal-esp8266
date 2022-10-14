@@ -58,10 +58,20 @@ void test_conversion_address() {
     AddressValue v = { reading };
 
     StaticJsonDocument<50> json;
-    CO_4 xxx = { "temp_xx", 0x0123 };
+    CO_4 xxx = { "temp_xx", 0x0123, 0 };
     xxx.output(json, v);
 
     TEST_ASSERT_EQUAL_FLOAT(65535, json["temp_xx"]);
+}
+
+void test_init_co4() {
+    Address* addr = new CO_4("test", 0x0101, 0);
+
+    TEST_ASSERT_EQUAL_STRING("test", addr->name.c_str());
+    TEST_ASSERT_EQUAL_UINT16(257, addr->addr);
+    TEST_ASSERT_EQUAL_INT(0, addr->length);
+
+    delete addr;
 }
 
 void test_conversion_address_ptr() {
@@ -80,6 +90,40 @@ void test_conversion_address_ptr() {
     TEST_ASSERT_EQUAL_FLOAT(-1.5f, json["temp_xx"]);
 }
 
+void test_parsemessage() {
+    std::string message = "{ \"name\": \"abc\", \"addr\": \"257\" }";
+    auto *addr = processMessageToAddress(message.c_str());
+
+    TEST_ASSERT_EQUAL_STRING("abc", addr->name.c_str());
+    TEST_ASSERT_EQUAL_UINT16(257, addr->addr);
+    TEST_ASSERT_EQUAL_INT(4, addr->length);
+
+    delete addr;
+}
+
+void test_parsemessage_len() {
+    std::string message = "{ \"name\": \"test\", \"addr\": 257, \"len\": 2 }";
+    auto *addr = processMessageToAddress(message.c_str());
+
+    TEST_ASSERT_EQUAL_INT(2, addr->length);
+
+    delete addr;
+}
+
+void test_parsemessage_witherr() {
+    const char* message = "abc";
+    
+    const Address* addr = processMessageToAddress(message);
+    TEST_ASSERT_NULL(addr);
+}
+
+void test_destructor() {
+    Address* addr = new CO_4("test", 0x1234, 0);
+    TEST_ASSERT_NOT_NULL(addr);
+
+    delete addr;
+}
+
 int main(int argc, char *argv[]) {
     UNITY_BEGIN();
     
@@ -89,6 +133,12 @@ int main(int argc, char *argv[]) {
     RUN_TEST(test_conversion_address);
 
     RUN_TEST(test_conversion_address_ptr);
+
+    RUN_TEST(test_parsemessage);
+    RUN_TEST(test_parsemessage_witherr);
+    RUN_TEST(test_destructor);
+    RUN_TEST(test_init_co4);
+    RUN_TEST(test_parsemessage_len);
 
     UNITY_END();
 

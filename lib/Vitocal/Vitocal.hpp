@@ -35,8 +35,9 @@ class Vitocal {
 
     enum class ActionType { DoRead, DoWrite };
     struct Action {
-        ActionType type;
+        const ActionType type;
         const Address* addr;
+        
         int retry = 0;
 
         const std::vector<uint8_t> toSendBuffer() {

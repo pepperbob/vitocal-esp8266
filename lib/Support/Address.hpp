@@ -28,27 +28,33 @@ struct AddressValue {
  */
 struct Address {
 
-    Address(const char* name, uint16_t addr, uint8_t length): name(name), addr(addr), length(length) { }
+    Address(const std::string name, uint16_t addr, uint8_t length): name(name), addr(addr), length(length) { }
+    virtual ~Address() { }
 
-    const char* name;
+    const std::string name;
     const uint16_t addr;
     const uint8_t length;
 
     virtual void output(JsonDocument &doc, const AddressValue &value) const = 0;
 };
 
+/**
+ * @brief Address variable input length; values will be transformed to uint32_t. 
+ */
 struct CO_4: Address {
-    CO_4(const char* name, uint16_t addr): Address(name, addr, 4) {}
+    CO_4(const std::string name, uint16_t addr, uint8_t length): Address(name, addr, length) {}
+    ~CO_4() { }
 
     void output(JsonDocument &doc, const AddressValue &value) const override {
-        uint32_t temp;
-        value.toInt(temp);
-        doc[name] = temp;
+        uint32_t no;
+        value.toInt(no);
+        doc[name] = no;
     }
 };
 
 struct Temperature: Address {
-    Temperature(const char* name, uint16_t addr): Address(name, addr, 2) { }
+    Temperature(const std::string name, uint16_t addr): Address(name, addr, 2) { }
+    ~Temperature() { }
 
     void output(JsonDocument &doc, const AddressValue &value) const override {
         int16_t temp;
@@ -61,4 +67,5 @@ const Temperature ADDR_AU = { "temp_au", 0x0101 };
 const Temperature ADDR_WW = { "temp_ww", 0x010D };
 const Temperature ADDR_VL = { "temp_vl", 0x0105 };
 const Temperature ADDR_RL = { "temp_rl", 0x0106 };
-const CO_4 ADDR_BS = { "count_bs", 0x5005 };
+
+const CO_4 ADDR_BS = { "count_bs", 0x5005, 4 };

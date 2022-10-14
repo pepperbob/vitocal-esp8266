@@ -1,8 +1,19 @@
 #pragma once
 
 #include <functional>
-
 #include <Address.hpp>
+
+
+/**
+ * @brief Processes JSON-string and returns an Address pointer. 
+ * 
+ * The pointer has to be deleted explicitly to not leak memory. 
+ * Returns nullptr if message cannot be parsed.
+ * 
+ * @param message 
+ * @return Address* 
+ */
+const CO_4* processMessageToAddress(const char* message);
 
 /**
  * @brief Event that is published upon successfull reading.

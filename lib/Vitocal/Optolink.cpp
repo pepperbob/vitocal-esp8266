@@ -21,19 +21,22 @@ bool Optolink::sync() {
     return !_serial->available() && reading == VITO_HELLO;
 }
 
-ReadResult Optolink::read(uint8_t length) {
+ReadResult Optolink::read(const uint8_t length) {
     std::vector<uint8_t> buff;
-    buff.reserve(length);
+    if(length > 0) {
+        buff.reserve(length);
+    }
+    
     auto time = millis();
 
     // expected bytes in return within at max 100ms
-    while (buff.size() < length && (millis() - time < 100)) {
+    while ((length == 0 || buff.size() < length) && (millis() - time < 100)) {
         if (_serial->available()) {
             buff.push_back(_serial->read());
         }
     }
 
-    boolean isErr = buff.size() != length;
+    boolean isErr = length !=0 && buff.size() != length;
 
     return { buff, isErr };
 }
