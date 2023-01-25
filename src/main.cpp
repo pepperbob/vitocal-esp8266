@@ -7,7 +7,6 @@
 #include <Vitocal.hpp>
 #include <secret.h>
 
-
 WiFiClient wifiClient;
 MQTTClient mqttClient(200);
 Blinker led(LED_BUILTIN);
@@ -23,40 +22,7 @@ struct DataPointValue {
 
 std::vector<DataPointValue> currentDatapoints;
 
-void initWifi() {
-  if (WiFi.status() == WL_CONNECTED) {
-    return;
-  }
-  
-  WiFi.mode(WIFI_STA);
-  delay(200);
-  WiFi.begin(wifi_SSID, wifi_Pass);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    // effectively delay
-    led.blink(1, 1000);
-  }
-
-  WiFi.setAutoConnect(true);
-}
-
-void assureMqttConnected() {
-  if (mqttClient.connected()) {
-    return;
-  }
-
-  while(!mqttClient.connect(mqtt_ClientId, mqtt_User, mqtt_Password)) {
-    // we are not connected to mqtt
-    led.blink(2, 500);
-  }
-
-  mqttClient.publish(mqtt_TopicLWT, "Online", true, 1);
-  mqttClient.subscribe(mqtt_TopicCMD);
-}
-
 void sendLogOverMqtt(LogEvent event) {
-  assureMqttConnected();
-
   StaticJsonDocument<150> logJson;
   logJson["msg"] = event.message;
   logJson["time"] = event.millis;
@@ -74,8 +40,6 @@ void collectDatapoint(const ReadEvent event) {
 }
 
 void sendDatapoints() {
-  assureMqttConnected();
-
   StaticJsonDocument<200> doc;
   doc["device"] = "vitocal";
 
@@ -119,32 +83,52 @@ void mqtt_parse_message(String &topic, String &payload) {
   }
 }
 
+boolean assureMqttConnected() {
+
+  if(mqttClient.connected()) {
+    return true;
+  }
+
+  if(!mqttClient.connect(mqtt_ClientId, mqtt_User, mqtt_Password)) {
+    return false;
+  }
+
+  mqttClient.publish(mqtt_TopicLWT, "Online", true, 1);
+  mqttClient.subscribe(mqtt_TopicCMD);
+  
+  return true;
+}
+
 void setup() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(wifi_SSID, wifi_Pass);
 
-  initWifi();
+  while (WiFi.status() != WL_CONNECTED) {
+    // effectively delay
+    led.blink(1, 1000);
+  }
 
+  while(!Serial) continue;
+
+  // setup vito, register callbacks
   vito.setup(&Serial);
-
-  // register callbacks
   vito.onRead(collectDatapoint);
   vito.onReadError(freeAddressAfterFailure);
   vito.onQueueProcessed(sendDatapoints);
   vito.onLog(sendLogOverMqtt);
   
-  while(!Serial) continue;
-  
   mqttClient.begin(mqtt_Host, wifiClient);
   mqttClient.setWill(mqtt_TopicLWT, "Offline", true, 1);
   mqttClient.onMessage(mqtt_parse_message);
-  
-  assureMqttConnected();
-
-  sendLog("Setup complete.");
 }
 
 void loop() {
+
+  // maintain mqtt-connection
   if (!mqttClient.loop()) {
-    assureMqttConnected();
+    // we're not connceted anymore
+    if(!assureMqttConnected()) led.blink(1, 1000);
+    return;
   }
   
   // handle vitocal

@@ -12,7 +12,6 @@ bool Vitocal::loop() {
 
         case SYNC_REQUIRED:
             if (_opto.sync()) {
-                _doLog("sync ok");
                 _state = SYNCHED;
             }
             break;

@@ -28,8 +28,8 @@ struct AddressValue {
  */
 struct Address {
 
-    Address(const std::string name, uint16_t addr, uint8_t length): name(name), addr(addr), length(length) { }
-    virtual ~Address() { }
+    Address(const std::string name, uint16_t addr, uint8_t length): name(name), addr(addr), length(length) {}
+    virtual ~Address() {}
 
     const std::string name;
     const uint16_t addr;
@@ -45,7 +45,7 @@ struct Address {
  */
 struct GenericInt4: Address {
     GenericInt4(const std::string name, uint16_t addr, uint8_t length): Address(name, addr, length) {}
-    ~GenericInt4() { }
+    ~GenericInt4() {}
 
     void output(JsonDocument &doc, const AddressValue &value) const override {
         uint32_t no;
@@ -59,8 +59,8 @@ struct GenericInt4: Address {
  * 
  */
 struct Temperature: Address {
-    Temperature(const std::string name, uint16_t addr): Address(name, addr, 2) { }
-    ~Temperature() { }
+    Temperature(const std::string name, uint16_t addr): Address(name, addr, 2) {}
+    ~Temperature() {}
 
     void output(JsonDocument &doc, const AddressValue &value) const override {
         int16_t temp;
