@@ -12,6 +12,7 @@ MQTTClient mqttClient(200);
 Blinker led(LED_BUILTIN);
 Vitocal vito;
 
+// interval to read addresses
 unsigned long interval = 60000;
 unsigned long started = interval*-1;
 
@@ -83,20 +84,20 @@ void mqtt_parse_message(String &topic, String &payload) {
   }
 }
 
-boolean assureMqttConnected() {
+void assureMqttConnected() {
 
-  if(mqttClient.connected()) {
-    return true;
+  if (mqttClient.connected()) {
+    return;
   }
 
-  if(!mqttClient.connect(mqtt_ClientId, mqtt_User, mqtt_Password)) {
-    return false;
+  if (mqttClient.connect(mqtt_ClientId, mqtt_User, mqtt_Password)) {
+      mqttClient.publish(mqtt_TopicLWT, "Online", true, 1);
+      mqttClient.subscribe(mqtt_TopicCMD);
+      return;
   }
-
-  mqttClient.publish(mqtt_TopicLWT, "Online", true, 1);
-  mqttClient.subscribe(mqtt_TopicCMD);
   
-  return true;
+  led.blink(1, 1000);
+  return;
 }
 
 void setup() {
@@ -105,7 +106,7 @@ void setup() {
 
   while (WiFi.status() != WL_CONNECTED) {
     // effectively delay
-    led.blink(1, 1000);
+    led.blink(2, 500);
   }
 
   while(!Serial) continue;
@@ -117,24 +118,37 @@ void setup() {
   vito.onQueueProcessed(sendDatapoints);
   vito.onLog(sendLogOverMqtt);
   
+  mqttClient.setTimeout(2000);
   mqttClient.begin(mqtt_Host, wifiClient);
   mqttClient.setWill(mqtt_TopicLWT, "Offline", true, 1);
   mqttClient.onMessage(mqtt_parse_message);
+  
 }
 
 void loop() {
 
+  // millis since last read
+  auto millisSince = millis() - started;
+
   // maintain mqtt-connection
   if (!mqttClient.loop()) {
-    // we're not connceted anymore
-    if(!assureMqttConnected()) led.blink(1, 1000);
+
+    // we're not connceted (anymore)
+    assureMqttConnected();
+    
+    // if no update after a while...
+    auto long_time_no_update = started > 0 && millisSince > 300*1000;
+
+    // ... restart the ESP
+    if (long_time_no_update) ESP.restart();
+    
     return;
   }
   
-  // handle vitocal
-  auto millisSince = millis() - started;
+  // compare with interval...
   auto shouldUpdate = millisSince > interval;
 
+  // loop in any case and update if needed
   if (vito.loop() && shouldUpdate) {
     
     led.blink(1);

@@ -67,7 +67,7 @@ class Vitocal {
     QueueProcessedHandler _processedHandler;
     LogEventHandler _logHandler;
 
-    std::queue<Action>_queue;
+    std::queue<Action> _queue;
 
     Optolink _opto;
 };
